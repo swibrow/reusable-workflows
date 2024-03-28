@@ -1,0 +1,43 @@
+name:
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: The dotenv file path
+        type: string
+        required: false
+        default: .env
+
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Convert dotenv to env vars
+        uses: actions/github-script@v7
+        env:
+          DOT_ENV: ${{ inputs.path || '.env' }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const content = fs.readFileSync(process.env.DOT_ENV, { encoding: 'utf8' }).trim();
+            const lines = content.split('\n');
+
+            const result = {};
+            lines.forEach(line => {
+              const [key, value] = line.split('=');
+              result[key] = value;
+            });
+
+            Object.entries(result).forEach(([key, value]) => {
+              console.log(`Setting environment variable ${key}=${value}`);
+              core.exportVariable(key, value);
+            });
+      - name: Print env vars
+        run: |
+          echo "The env vars are:"
+          env
